@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crucigrama de recuerdos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..600;1,6..96,400..600&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: pantalla de juego a dos columnas (rejilla | pista) que se apila en móvil.
+   Mucho aire, líneas finas y una única columna tintada que esconde la palabra. */
+:root{
+  --bg:#ECEFEA;
+  --surface:#F7F9F6;
+  --ink:#16201A;
+  --muted:#5F6D64;
+  --line:#C6CFC8;
+  --accent:#2D6A4A;
+  --on-accent:#F7F9F6;
+  --key:#D6E5DA;
+  --error:#9E4636;
+  --f-display:"Bodoni Moda","Bodoni 72",Didot,Georgia,serif;
+  --f-body:"Figtree","Segoe UI",system-ui,sans-serif;
+  --f-mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --t-xs:.75rem;
+  --t-sm:.875rem;
+  --t-md:1rem;
+  --t-lg:1.25rem;
+  --t-xl:clamp(1.375rem,2.6vw,1.75rem);
+  --t-hero:clamp(2.75rem,7vw,5rem);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1310;--surface:#141C17;--ink:#E2E8E3;--muted:#8E9C93;--line:#2B3731;
+    --accent:#8DC6A2;--on-accent:#0D1310;--key:#1B3025;--error:#E3907E;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1310;--surface:#141C17;--ink:#E2E8E3;--muted:#8E9C93;--line:#2B3731;
+  --accent:#8DC6A2;--on-accent:#0D1310;--key:#1B3025;--error:#E3907E;color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:var(--t-md);line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+figure{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+.app{max-width:1080px;margin:0 auto;padding-block:clamp(20px,4vw,48px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.screen{animation:enter .6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.eyebrow{margin:0;font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.display{margin:0;font-family:var(--f-display);font-weight:400;font-size:var(--t-hero);line-height:1.02;letter-spacing:-.015em;text-wrap:balance}
+.display em{font-style:italic;color:var(--accent)}
+.lede{margin:0;font-size:var(--t-lg);line-height:1.5;max-width:36ch;text-wrap:pretty}
+.sign{margin:0;font-family:var(--f-display);font-style:italic;font-size:var(--t-lg);color:var(--muted)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--ink);border-radius:2px;background:transparent;color:var(--ink);font-weight:500;letter-spacing:.01em;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s}
+.btn:not(:disabled):hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--ink);color:var(--bg)}
+.btn-primary:not(:disabled):hover{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn-quiet{border-color:var(--line)}
+.btn-quiet.nudge{border-color:var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.35;cursor:default}
+.link{background:none;border:0;padding:6px 0;font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.link:hover{color:var(--ink)}
+
+.config-error{margin:0 0 24px;padding:14px 16px;border:1px solid var(--error);color:var(--error);font-family:var(--f-mono);font-size:var(--t-sm);white-space:pre-line}
+
+/* Portada */
+.intro{display:grid;gap:clamp(40px,6vw,72px);align-items:center;padding-block:clamp(16px,8vh,96px)}
+@media (min-width:860px){.intro{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)}}
+.intro-text{display:flex;flex-direction:column;align-items:flex-start;gap:28px;min-width:0}
+.intro-art{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* Rejilla */
+.grid-wrap{container-type:inline-size;min-width:0;display:flex;flex-direction:column;gap:14px}
+.grid{--w:10;display:grid;grid-template-columns:repeat(var(--w),minmax(0,1fr));gap:4px;width:100%;max-width:calc(var(--w) * 56px)}
+.grid.mini{max-width:calc(var(--w) * 40px)}
+@media (min-width:600px){.grid{gap:6px}}
+.void{aspect-ratio:1}
+.cell{position:relative;aspect-ratio:1;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);border-radius:2px;font-family:var(--f-mono);font-weight:500;font-size:18px;font-size:min(26px,calc(100cqi / var(--w) * .46));line-height:1;text-transform:uppercase;cursor:pointer;user-select:none;-webkit-user-select:none;transition:background-color .4s,border-color .25s,color .4s}
+.grid.mini .cell{cursor:default}
+.cell.key{background:var(--key)}
+.cell.brk::before{content:"";position:absolute;left:-4px;top:30%;bottom:30%;width:2px;background:var(--muted)}
+@media (min-width:600px){.cell.brk::before{left:-5px}}
+.cell.active{border-color:var(--ink)}
+.cell .n{position:absolute;top:3px;left:4px;font-size:9px;font-size:clamp(7px,calc(100cqi / var(--w) * .18),10px);font-weight:400;line-height:1;color:var(--muted)}
+.cell.ghost .ch{color:var(--muted)}
+.cell.pop .ch{display:inline-block;animation:drop .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 55ms)}
+.cell.shake{animation:shake .42s ease}
+.cell.lit{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.cell.lit .n{color:var(--on-accent)}
+@keyframes drop{from{opacity:0;transform:translateY(-35%)}to{opacity:1;transform:none}}
+@keyframes shake{20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+
+/* Juego */
+.game{display:flex;flex-direction:column;gap:clamp(24px,4vw,40px)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.bar-right{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px}
+.progress{display:flex;align-items:center;gap:10px;font-family:var(--f-mono);font-size:var(--t-sm);font-variant-numeric:tabular-nums}
+.dots{display:flex;gap:4px}
+.dots i{width:8px;height:8px;border:1px solid var(--line);background:var(--surface);transition:background-color .3s,border-color .3s}
+.dots i.on{background:var(--accent);border-color:var(--accent)}
+.board{display:grid;gap:clamp(28px,4vw,56px)}
+@media (min-width:900px){.board{grid-template-columns:minmax(0,1fr) 340px;align-items:start}}
+.panel{display:flex;flex-direction:column;gap:28px;min-width:0}
+.card{display:flex;flex-direction:column;gap:18px;padding:clamp(20px,3vw,28px);background:var(--surface);border:1px solid var(--line);border-radius:2px}
+.clue-text{margin:0;font-family:var(--f-display);font-size:var(--t-xl);line-height:1.3;text-wrap:pretty}
+.answer-form{display:flex;flex-direction:column;gap:12px}
+.answer{width:100%;min-height:52px;padding:0 16px;border:1px solid var(--line);border-radius:2px;background:var(--bg);font-family:var(--f-mono);font-size:var(--t-lg);letter-spacing:.18em;text-transform:uppercase}
+.answer::placeholder{letter-spacing:.04em;text-transform:none;color:var(--muted)}
+.answer:read-only{color:var(--accent)}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.actions .btn{flex:1 1 auto}
+.feedback{margin:0;min-height:1.55em;font-size:var(--t-sm);color:var(--muted)}
+.feedback.bad{color:var(--error)}
+.feedback.good{color:var(--accent)}
+.clues{display:flex;flex-direction:column;gap:10px}
+.clue-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.clue-list li{border-bottom:1px solid var(--line)}
+.clue-list button{width:100%;display:grid;grid-template-columns:2.2ch minmax(0,1fr) auto;align-items:center;gap:14px;padding:11px 6px;background:none;border:0;text-align:left;cursor:pointer;font-family:var(--f-mono);font-size:var(--t-sm)}
+.clue-list button[aria-current="true"]{background:var(--surface)}
+.clue-list .num{color:var(--muted);font-variant-numeric:tabular-nums}
+.clue-list button[aria-current="true"] .num{color:var(--ink)}
+.clue-list .ans{letter-spacing:.24em;overflow-wrap:anywhere}
+.clue-list .blank{color:var(--muted)}
+.clue-list .wordgap{margin-left:.7em}
+.clue-list .st{font-size:var(--t-xs);color:var(--accent)}
+.clue-list button:hover .ans{color:var(--accent)}
+
+/* Final del crucigrama */
+.finale{border-color:var(--accent)}
+.finale-lede{margin:0;font-size:var(--t-md)}
+.keyword{margin:0;display:flex;flex-wrap:wrap;font-family:var(--f-display);font-size:clamp(2.5rem,6vw,3.25rem);line-height:1;letter-spacing:.08em}
+.keyword span{display:inline-block;animation:rise .7s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 160ms + 320ms)}
+.keyword.still span{animation:none}
+@keyframes rise{from{opacity:0;transform:translateY(40%)}to{opacity:1;transform:none}}
+
+/* Regalo */
+.reveal{display:flex;flex-direction:column;gap:clamp(28px,4vw,40px);max-width:780px;margin:0 auto;padding-block:clamp(8px,4vh,48px)}
+.reveal-head{display:flex;flex-direction:column;gap:16px}
+.ticket{display:grid;background:var(--surface);border:1px solid var(--line);border-radius:2px;animation:print 1.1s cubic-bezier(.2,.7,.2,1) .3s both}
+@keyframes print{from{opacity:0;transform:translateY(24px);clip-path:inset(0 0 100% 0)}to{opacity:1;transform:none;clip-path:inset(0 0 0 0)}}
+@media (min-width:680px){.ticket{grid-template-columns:minmax(0,1fr) 200px}}
+.ticket-main{display:flex;flex-direction:column;gap:28px;padding:clamp(20px,4vw,32px);min-width:0}
+.ticket-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+.route{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(10px,3vw,20px)}
+.port{display:flex;flex-direction:column;gap:6px}
+.port.to{align-items:flex-end;text-align:right}
+.code{font-family:var(--f-mono);font-weight:500;font-size:clamp(2.25rem,9vw,3.75rem);line-height:.9;letter-spacing:.01em}
+.city{font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.path{position:relative;height:24px;display:grid;place-items:center}
+.path::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--muted)}
+.path svg{position:relative;width:24px;height:24px;padding:0 6px;box-sizing:content-box;background:var(--surface);color:var(--accent)}
+.fields{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 24px}
+@media (min-width:520px){.fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.fields div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fields dt{font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.fields dd{margin:0;font-family:var(--f-mono);font-size:var(--t-md);overflow-wrap:anywhere}
+.stub{display:flex;flex-direction:column;justify-content:space-between;gap:24px;padding:clamp(20px,4vw,32px);border-top:1px dashed var(--line);min-width:0}
+.stub .fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:680px){.stub{border-top:0;border-left:1px dashed var(--line)}.stub .fields{grid-template-columns:minmax(0,1fr)}}
+.barcode{display:flex;align-items:stretch;height:56px}
+.barcode i{display:block}
+.barcode i:nth-child(odd){background:var(--ink)}
+.note{margin:0;font-family:var(--f-display);font-style:italic;font-size:var(--t-xl);line-height:1.4;max-width:40ch;text-wrap:pretty}
+.reveal-foot{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+
+.confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:20}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
+}
+</style>
+
+<div class="app">
+  <p class="config-error" id="configError" hidden></p>
+
+  <!-- PORTADA -->
+  <section id="intro" class="screen intro">
+    <div class="intro-text">
+      <p class="eyebrow" id="introEyebrow">Fase 1 · Para Aroa</p>
+      <h1 class="display" id="introTitle">Feliz cumpleaños, <em>Aroa</em></h1>
+      <p class="lede" id="introLede">Te hemos hecho un crucigrama con siete recuerdos nuestros. Resuélvelo y la columna marcada te dirá cuál es tu regalo.</p>
+      <button class="btn btn-primary" id="startBtn" type="button">Empezar</button>
+      <p class="sign" id="introSign">— Tus amigas</p>
+    </div>
+    <figure class="intro-art">
+      <div class="grid-wrap"><div class="grid mini" id="miniGrid" aria-hidden="true"></div></div>
+      <figcaption class="eyebrow" id="miniCaption">7 recuerdos · 1 columna escondida</figcaption>
+    </figure>
+  </section>
+
+  <!-- JUEGO -->
+  <section id="game" class="screen game" hidden>
+    <header class="bar">
+      <p class="eyebrow">Fase 1 · Crucigrama de recuerdos</p>
+      <div class="bar-right">
+        <div class="progress" aria-label="Progreso"><span class="dots" id="dots"></span><span id="progressText">0 / 7</span></div>
+        <button class="link" id="testBtn" type="button" hidden>Prueba: dejar solo una</button>
+        <button class="link" id="resetBtn" type="button">Reiniciar</button>
+      </div>
+    </header>
+
+    <div class="board">
+      <div class="grid-wrap">
+        <div class="grid" id="grid"></div>
+        <p class="eyebrow">Toca una fila para elegir el recuerdo</p>
+      </div>
+
+      <aside class="panel">
+        <div class="card" id="clueCard">
+          <p class="eyebrow" id="clueMeta">Recuerdo 1 de 7</p>
+          <p class="clue-text" id="clueText"></p>
+          <div class="answer-form" role="group" aria-label="Respuesta">
+            <label class="eyebrow" for="answer">Tu respuesta</label>
+            <input class="answer" id="answer" name="answer" type="text" placeholder="Escribe aquí" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done">
+            <div class="actions">
+              <button class="btn btn-primary" id="checkBtn" type="button">Comprobar</button>
+              <button class="btn btn-quiet" id="hintBtn" type="button">Pista</button>
+            </div>
+            <p class="feedback" id="feedback" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="card finale" id="finale" hidden>
+          <p class="eyebrow">Crucigrama completado</p>
+          <p class="finale-lede">Lee la columna marcada de arriba abajo.</p>
+          <p class="keyword" id="keywordOut" aria-live="polite"></p>
+          <p class="finale-lede" id="finaleAfter"></p>
+          <button class="btn btn-primary" id="giftBtn" type="button">Abrir tu regalo</button>
+        </div>
+
+        <div class="clues">
+          <p class="eyebrow">Recuerdos</p>
+          <ol class="clue-list" id="clueList"></ol>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- REGALO -->
+  <section id="reveal" class="screen reveal" hidden>
+    <div class="reveal-head">
+      <p class="eyebrow">Tu regalo</p>
+      <h2 class="display" id="giftTitle"></h2>
+      <p class="lede" id="giftSub"></p>
+    </div>
+
+    <article class="ticket" aria-label="Billete regalo">
+      <div class="ticket-main">
+        <div class="ticket-top"><span class="eyebrow">Billete regalo</span><span class="eyebrow" id="tFlight"></span></div>
+        <div class="route">
+          <div class="port"><span class="code" id="tFromCode"></span><span class="city" id="tFromCity"></span></div>
+          <div class="path" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 12c0 .8-.7 1-1.5 1h-6l-4 7H8.5l2.5-7H6l-1.5 2H3l1-3-1-3h1.5L6 11h5L8.5 4H10l4 7h6c.8 0 1.5.2 1.5 1z"/></svg>
+          </div>
+          <div class="port to"><span class="code" id="tToCode"></span><span class="city" id="tToCity"></span></div>
+        </div>
+        <dl class="fields" id="tFields"></dl>
+      </div>
+      <div class="stub">
+        <dl class="fields" id="tStub"></dl>
+        <div class="barcode" id="barcode" aria-hidden="true"></div>
+      </div>
+    </article>
+
+    <p class="note" id="giftNote"></p>
+    <div class="reveal-foot">
+      <p class="sign" id="giftSign"></p>
+      <button class="btn btn-quiet" id="backBtn" type="button">Ver el crucigrama</button>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — cambia solo esto para personalizar el juego
+   ===================================================================== */
+const CONFIG = {
+  // Nombre de la cumpleañera (portada y billete). Se puede usar {nombre} en los textos del regalo.
+  nombre: "Aroa",
+  // Quién firma el regalo
+  firma: "Tus amigas",
+
+  // La palabra que aparece en la columna marcada.
+  // Debe tener tantas letras como palabras hay en la lista de abajo.
+  palabraClave: "ESCAPADA",
+  // Frase que sale debajo de la palabra clave al terminar el crucigrama
+  textoFinal: "¿A dónde? Abre tu regalo para saberlo.",
+
+  // Una palabra por cada letra de la palabra clave, en orden.
+  // Cada respuesta tiene que contener su letra (la 1ª palabra una E, la 2ª una S...).
+  // Si la letra aparece varias veces, elige cuál usar con  posicion: N  (empieza en 0).
+  // Las tildes y los espacios dan igual. En  alternativas  van otras formas de escribirla que también valen.
+  palabras: [
+    { respuesta: "Tottem",       alternativas: ["Totem"],    pista: "Nombre del bar/pub por el que casi nos llevan presas." },
+    { respuesta: "Fresa",        pista: "¿De qué sabor era el yogur que Naia estampó en el comedor?" },
+    { respuesta: "Coco",         pista: "Aroa huele a…" },
+    { respuesta: "Txirrina",     alternativas: ["Chirrina"], pista: "¿Cuál era la palabra favorita de Isabel Gorgojo?" },
+    { respuesta: "Bruja piruja", pista: "¿Qué le gritó Leire a Sor Lauren cuando estabais solas en el comedor?" },
+    { respuesta: "Pimienta",     pista: "¿Qué es lo que casi nos mata en clase mientras una monja daba una charla?" },
+    { respuesta: "Dedo",         pista: "¿Qué parte de una monja juramos ver detrás de la puerta del baño del comedor?" },
+    { respuesta: "Agua",         pista: "¿Qué se tiró Urko encima cuando se cayó en el comedor?" }
+  ],
+
+  // Lo que aparece al abrir el regalo
+  regalo: {
+    titulo: "Te vas a",
+    destino: "Irlanda",
+    subtitulo: "A ver a Liam. Feliz cumpleaños, {nombre}.",
+    vuelo: "Vuelo LU 2310",
+    origen:  { codigo: "MAD", ciudad: "Madrid" },   // cambia por vuestro aeropuerto
+    llegada: { codigo: "DUB", ciudad: "Dublín" },
+    datos: [
+      ["Pasajera", "{nombre}"],
+      ["Fecha",    "12 dic 2026"],
+      ["Salida",   "07:40"],
+      ["Asiento",  "Ventanilla"],
+      ["Equipaje", "1 maleta, sin pasarse"],
+      ["Motivo",   "Ver a Liam"]
+    ],
+    talon: [
+      ["Puerta", "Llegadas"],
+      ["Clase",  "Amiga favorita"]
+    ],
+    mensaje: "Sabemos lo mucho que le echas de menos, así que esta vez el viaje corre de nuestra cuenta. Disfrútalo y vuelve con historias para el próximo crucigrama."
+  }
+};
+/* ===================================================================== */
+
+(() => {
+  const $ = s => document.querySelector(s);
+  const NUM = {1:"un",2:"dos",3:"tres",4:"cuatro",5:"cinco",6:"seis",7:"siete",8:"ocho",9:"nueve",10:"diez",11:"once",12:"doce"};
+  const GOOD = ["¡Eso es!", "Exacto. Qué recuerdo.", "Correcto. Esa no se olvida.", "Bien. Siguiente.", "Eso mismo."];
+  const WRONG = ["Esa no es. Haz memoria.", "Casi… o no. Prueba otra.", "Nop. Piensa en aquel día.", "Tampoco. Usa la pista si hace falta."];
+  const fill = s => String(s).replaceAll("{nombre}", CONFIG.nombre);
+
+  // Letras de una palabra: display conserva la Ñ, key sirve para comparar sin tildes.
+  function letters(s){
+    const chars = Array.from(String(s || "").normalize("NFC").toUpperCase()).filter(c => /\p{L}/u.test(c));
+    const display = chars.map(c => c === "Ñ" ? "Ñ" : c.normalize("NFD").charAt(0));
+    const key = display.map(c => c === "Ñ" ? "N" : c);
+    return { display, key };
+  }
+
+  // Calcula la posición de cada palabra para que la letra clave caiga en la misma columna.
+  function build(cfg){
+    const kw = letters(cfg.palabraClave);
+    const errors = [];
+    if (kw.key.length !== cfg.palabras.length){
+      errors.push(`La palabra clave tiene ${kw.key.length} letras, pero hay ${cfg.palabras.length} palabras. Tienen que coincidir.`);
+    }
+    const rows = cfg.palabras.map((p, i) => {
+      const L = letters(p.respuesta);
+      const want = kw.key[i];
+      let pos = Number.isInteger(p.posicion) ? p.posicion : L.key.indexOf(want);
+      if (want && (pos < 0 || L.key[pos] !== want)){
+        errors.push(`"${p.respuesta}" (palabra ${i + 1}) no tiene la letra ${want} en esa posición.`);
+        pos = 0;
+      }
+      const alts = [L.key.join(""), ...(p.alternativas || []).map(a => letters(a).key.join(""))];
+      // Dónde empieza cada palabra cuando la respuesta tiene varias (para marcar la separación)
+      const breaks = [];
+      let acc = 0;
+      String(p.respuesta).trim().split(/\s+/).forEach((w, k) => { if (k) breaks.push(acc); acc += letters(w).key.length; });
+      return { pista: p.pista, display: L.display, key: L.key, alts, breaks, pos: Math.max(0, pos) };
+    });
+    const K = Math.max(0, ...rows.map(r => r.pos));
+    rows.forEach(r => { r.off = K - r.pos; });
+    const W = Math.max(1, ...rows.map(r => r.off + r.key.length));
+    return { rows, K, W, keyword: kw.display, errors };
+  }
+
+  const model = build(CONFIG);
+  const n = model.rows.length;
+  if (model.errors.length){
+    const box = $("#configError");
+    box.textContent = "Revisa la configuración:\n" + model.errors.join("\n");
+    box.hidden = false;
+  }
+
+  // ---- Estado y guardado en el navegador ----
+  function hash(s){ let h = 0; for (const c of s) h = (Math.imul(h, 31) + c.codePointAt(0)) | 0; return (h >>> 0).toString(36); }
+  const STORE_KEY = "crucigrama-recuerdos:" + hash(JSON.stringify([CONFIG.palabraClave, CONFIG.palabras.map(p => p.respuesta)]));
+  const fresh = () => ({ screen: "intro", solved: model.rows.map(() => false), hints: model.rows.map(() => 0), active: 0, done: false });
+  function valid(s){
+    return s && Array.isArray(s.solved) && s.solved.length === n && Array.isArray(s.hints) && s.hints.length === n ? s : null;
+  }
+  function load(){ try { const s = localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+  function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+
+  let state = fresh();
+  const fails = [];
+  let cellsByRow = [];
+
+  // ---- Rejilla ----
+  function renderGrid(el, mini){
+    el.style.setProperty("--w", model.W);
+    el.innerHTML = "";
+    const byRow = [];
+    model.rows.forEach((r, ri) => {
+      byRow[ri] = [];
+      for (let c = 0; c < model.W; c++){
+        const d = document.createElement("div");
+        const li = c - r.off;
+        if (li < 0 || li >= r.key.length){ d.className = "void"; el.appendChild(d); continue; }
+        d.className = "cell" + (c === model.K ? " key" : "") + (r.breaks.includes(li) ? " brk" : "");
+        d.dataset.row = ri;
+        d.style.setProperty("--i", li);
+        if (!mini){
+          if (li === 0){ const num = document.createElement("span"); num.className = "n"; num.textContent = ri + 1; d.appendChild(num); }
+          const ch = document.createElement("span"); ch.className = "ch"; d.appendChild(ch);
+        }
+        byRow[ri].push(d);
+        el.appendChild(d);
+      }
+    });
+    return byRow;
+  }
+
+  function paintRow(ri, typed){
+    const r = model.rows[ri], solved = state.solved[ri], h = state.hints[ri];
+    cellsByRow[ri].forEach((cell, i) => {
+      let t = "", ghost = false;
+      if (solved || i < h) t = r.display[i];
+      else if (typed && typed[i]){ t = typed[i]; ghost = true; }
+      cell.querySelector(".ch").textContent = t;
+      cell.classList.toggle("ghost", ghost);
+    });
+  }
+
+  function renderList(){
+    const list = $("#clueList");
+    list.innerHTML = "";
+    model.rows.forEach((r, ri) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.row = ri;
+      if (ri === state.active && !state.done) b.setAttribute("aria-current", "true");
+      const shownCount = state.solved[ri] ? r.key.length : state.hints[ri];
+      b.setAttribute("aria-label", `Recuerdo ${ri + 1}, ${r.key.length} letras${state.solved[ri] ? ", resuelto" : ""}`);
+      const num = document.createElement("span"); num.className = "num"; num.textContent = ri + 1;
+      const ans = document.createElement("span"); ans.className = "ans";
+      r.display.forEach((ch, i) => {
+        const s = document.createElement("span");
+        if (i < shownCount) s.textContent = ch; else { s.textContent = "·"; s.className = "blank"; }
+        if (r.breaks.includes(i)) s.classList.add("wordgap");
+        ans.appendChild(s);
+      });
+      const st = document.createElement("span"); st.className = "st"; st.textContent = state.solved[ri] ? "✓" : "";
+      b.append(num, ans, st);
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  }
+
+  function updateProgress(){
+    const count = state.solved.filter(Boolean).length;
+    $("#progressText").textContent = `${count} / ${n}`;
+    const dots = $("#dots");
+    if (dots.children.length !== n){ dots.innerHTML = ""; for (let i = 0; i < n; i++) dots.appendChild(document.createElement("i")); }
+    [...dots.children].forEach((d, i) => d.classList.toggle("on", state.solved[i]));
+  }
+
+  function setFeedback(msg, kind){
+    const f = $("#feedback");
+    f.textContent = msg || "";
+    f.className = "feedback" + (kind ? " " + kind : "");
+  }
+
+  const answer = $("#answer"), checkBtn = $("#checkBtn"), hintBtn = $("#hintBtn");
+
+  function select(ri, focus){
+    if (state.done) return;
+    state.active = ri;
+    document.querySelectorAll(".cell.active").forEach(c => c.classList.remove("active"));
+    cellsByRow[ri].forEach(c => c.classList.add("active"));
+    const r = model.rows[ri], solved = state.solved[ri];
+    $("#clueMeta").textContent = `Recuerdo ${ri + 1} de ${n} · ${r.key.length} letras` + (r.breaks.length ? ` · ${r.breaks.length + 1} palabras` : "");
+    $("#clueText").textContent = r.pista;
+    answer.value = solved ? r.display.join("") : r.display.slice(0, state.hints[ri]).join("");
+    answer.readOnly = solved;
+    checkBtn.disabled = solved;
+    hintBtn.disabled = solved;
+    hintBtn.classList.remove("nudge");
+    setFeedback(solved ? "Resuelta." : "", solved ? "good" : "");
+    model.rows.forEach((_, i) => paintRow(i, i === ri && !solved ? letters(answer.value).display : null));
+    renderList();
+    save();
+    if (focus && !solved) answer.focus({ preventScroll: true });
+  }
+
+  function nextUnsolved(from){
+    for (let k = 1; k <= n; k++){ const i = (from + k) % n; if (!state.solved[i]) return i; }
+    return -1;
+  }
+
+  function shakeRow(ri){
+    cellsByRow[ri].forEach(c => {
+      c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake");
+      c.addEventListener("animationend", () => c.classList.remove("shake"), { once: true });
+    });
+  }
+
+  function solve(ri){
+    state.solved[ri] = true;
+    const r = model.rows[ri];
+    answer.value = r.display.join("");
+    answer.readOnly = true;
+    checkBtn.disabled = true;
+    hintBtn.disabled = true;
+    hintBtn.classList.remove("nudge");
+    paintRow(ri, null);
+    cellsByRow[ri].forEach((c, i) => {
+      if (i >= state.hints[ri]){ c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
+    });
+    setFeedback(GOOD[(state.solved.filter(Boolean).length - 1) % GOOD.length], "good");
+    updateProgress();
+    renderList();
+    save();
+    const next = nextUnsolved(ri);
+    if (next < 0) setTimeout(() => finish(true), 700 + r.key.length * 55);
+    else setTimeout(() => { if (state.active === ri && !state.done) select(next, true); }, 1100);
+  }
+
+  function finish(animate){
+    state.done = true;
+    save();
+    $("#clueCard").hidden = true;
+    $("#finale").hidden = false;
+    document.querySelectorAll(".cell.active").forEach(c => c.classList.remove("active"));
+    const kw = $("#keywordOut");
+    kw.innerHTML = "";
+    kw.classList.toggle("still", !animate);
+    model.keyword.forEach((ch, i) => {
+      const s = document.createElement("span"); s.textContent = ch; s.style.setProperty("--i", i); kw.appendChild(s);
+    });
+    const after = $("#finaleAfter");
+    after.textContent = fill(CONFIG.textoFinal || "");
+    after.hidden = !CONFIG.textoFinal;
+    model.rows.forEach((r, ri) => {
+      const cell = cellsByRow[ri][r.pos];
+      if (!cell) return;
+      if (animate) setTimeout(() => cell.classList.add("lit"), 250 + ri * 160);
+      else cell.classList.add("lit");
+    });
+    renderList();
+  }
+
+  // ---- Regalo ----
+  function renderTicket(){
+    const g = CONFIG.regalo;
+    const title = $("#giftTitle");
+    title.textContent = fill(g.titulo) + " ";
+    const em = document.createElement("em"); em.textContent = fill(g.destino); title.appendChild(em);
+    $("#giftSub").textContent = fill(g.subtitulo);
+    $("#tFlight").textContent = fill(g.vuelo);
+    $("#tFromCode").textContent = g.origen.codigo;
+    $("#tFromCity").textContent = g.origen.ciudad;
+    $("#tToCode").textContent = g.llegada.codigo;
+    $("#tToCity").textContent = g.llegada.ciudad;
+    const dl = (el, pairs) => {
+      el.innerHTML = "";
+      pairs.forEach(([k, v]) => {
+        const d = document.createElement("div");
+        const dt = document.createElement("dt"); dt.textContent = fill(k);
+        const dd = document.createElement("dd"); dd.textContent = fill(v);
+        d.append(dt, dd); el.appendChild(d);
+      });
+    };
+    dl($("#tFields"), g.datos);
+    dl($("#tStub"), g.talon);
+    const bc = $("#barcode");
+    bc.innerHTML = "";
+    let h = parseInt(hash(CONFIG.nombre + g.vuelo), 36) || 7;
+    for (let i = 0; i < 46; i++){
+      h = (Math.imul(h, 1103515245) + 12345) >>> 0;
+      const b = document.createElement("i");
+      b.style.flex = `${1 + ((h >>> 16) % 3)} 1 0`;
+      bc.appendChild(b);
+    }
+    $("#giftNote").textContent = fill(g.mensaje);
+    $("#giftSign").textContent = "— " + CONFIG.firma;
+  }
+
+  function confetti(){
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = document.createElement("canvas");
+    cv.className = "confetti";
+    document.body.appendChild(cv);
+    const ctx = cv.getContext("2d");
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = innerWidth, H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
+    const cs = getComputedStyle(document.documentElement);
+    const cols = ["--accent", "--key", "--line", "--muted"].map(v => cs.getPropertyValue(v).trim() || "#2D6A4A");
+    const parts = Array.from({ length: 64 }, () => ({
+      x: Math.random() * W, y: -20 - Math.random() * H * .6, s: 5 + Math.random() * 9,
+      vy: 1.2 + Math.random() * 2.2, vx: (Math.random() - .5) * .8,
+      r: Math.random() * 6.28, vr: (Math.random() - .5) * .08, c: cols[Math.floor(Math.random() * cols.length)]
+    }));
+    const t0 = performance.now();
+    (function frame(t){
+      const el = t - t0;
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = el > 3200 ? Math.max(0, 1 - (el - 3200) / 800) : 1;
+      for (const p of parts){
+        p.x += p.vx + Math.sin(el / 600 + p.r) * .4; p.y += p.vy; p.r += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+        ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s); ctx.restore();
+      }
+      if (el < 4000) requestAnimationFrame(frame); else cv.remove();
+    })(t0);
+  }
+
+  // ---- Pantallas ----
+  function show(name){
+    ["intro", "game", "reveal"].forEach(id => { $("#" + id).hidden = id !== name; });
+    state.screen = name;
+    save();
+    window.scrollTo(0, 0);
+  }
+
+  function initGame(){
+    cellsByRow = renderGrid($("#grid"), false);
+    $("#clueCard").hidden = false;
+    $("#finale").hidden = true;
+    updateProgress();
+    if (state.done){ model.rows.forEach((_, i) => paintRow(i, null)); finish(false); }
+    else select(nextUnsolvedFromActive(), false);
+  }
+  function nextUnsolvedFromActive(){
+    const a = Math.min(Math.max(0, state.active | 0), n - 1);
+    return state.solved[a] ? Math.max(0, nextUnsolved(a)) : a;
+  }
+
+  function fillIntro(){
+    $("#introEyebrow").textContent = `Fase 1 · Para ${CONFIG.nombre}`;
+    const t = $("#introTitle");
+    t.textContent = "Feliz cumpleaños, ";
+    const em = document.createElement("em"); em.textContent = CONFIG.nombre; t.appendChild(em);
+    $("#introLede").textContent = `Te hemos hecho un crucigrama con ${NUM[n] || n} recuerdos nuestros. Resuélvelo y la columna marcada te dirá cuál es tu regalo.`;
+    $("#introSign").textContent = "— " + CONFIG.firma;
+    $("#miniCaption").textContent = `${n} recuerdos · 1 columna escondida`;
+    const any = state.solved.some(Boolean);
+    $("#startBtn").textContent = state.done ? "Ver el crucigrama" : any ? "Seguir donde lo dejaste" : "Empezar";
+    renderGrid($("#miniGrid"), true);
+  }
+
+  // ---- Eventos ----
+  $("#startBtn").addEventListener("click", () => { show("game"); if (!state.done) select(state.active, true); });
+
+  $("#grid").addEventListener("click", e => {
+    const c = e.target.closest(".cell");
+    if (c) select(+c.dataset.row, true);
+  });
+  $("#clueList").addEventListener("click", e => {
+    const b = e.target.closest("button[data-row]");
+    if (b) select(+b.dataset.row, true);
+  });
+
+  answer.addEventListener("input", () => {
+    if (!state.solved[state.active]) paintRow(state.active, letters(answer.value).display);
+  });
+
+  // Comprobar: si acierta, la palabra queda fija; si falla, se borra (menos las letras de pista).
+  let clearTimer = null;
+  function check(){
+    const ri = state.active, r = model.rows[ri];
+    if (state.done || state.solved[ri]) return;
+    const typed = letters(answer.value).key;
+    if (!typed.length){ setFeedback("Escribe tu respuesta primero.", "bad"); answer.focus({ preventScroll: true }); return; }
+    if (r.alts.includes(typed.join(""))){ clearTimeout(clearTimer); return solve(ri); }
+    fails[ri] = (fails[ri] || 0) + 1;
+    shakeRow(ri);
+    const msg = typed.length !== r.key.length
+      ? `Tiene ${r.key.length} letras y has puesto ${typed.length}. Prueba otra vez.`
+      : WRONG[(fails[ri] - 1) % WRONG.length];
+    setFeedback(msg, "bad");
+    if (fails[ri] >= 2) hintBtn.classList.add("nudge");
+    clearTimeout(clearTimer);
+    clearTimer = setTimeout(() => {
+      if (state.active !== ri || state.solved[ri]) return;
+      answer.value = r.display.slice(0, state.hints[ri]).join("");
+      paintRow(ri, letters(answer.value).display);
+    }, 450);
+    answer.focus({ preventScroll: true });
+  }
+  checkBtn.addEventListener("click", check);
+  answer.addEventListener("keydown", e => {
+    if (e.key === "Enter"){ e.preventDefault(); check(); }
+  });
+
+  hintBtn.addEventListener("click", () => {
+    const ri = state.active, r = model.rows[ri];
+    if (state.solved[ri]) return;
+    state.hints[ri] = Math.min(r.key.length, state.hints[ri] + 1);
+    const h = state.hints[ri];
+    answer.value = r.display.slice(0, h).join("");
+    paintRow(ri, letters(answer.value).display);
+    hintBtn.classList.remove("nudge");
+    if (h >= r.key.length) return solve(ri);
+    setFeedback(h === 1 ? `Empieza por ${r.display[0]}.` : `Ya tienes ${h} letras. Lo demás es cosa tuya.`, "");
+    renderList();
+    save();
+    answer.focus({ preventScroll: true });
+  });
+
+  $("#giftBtn").addEventListener("click", () => { renderTicket(); show("reveal"); confetti(); });
+  $("#backBtn").addEventListener("click", () => show("game"));
+
+  let armed = null;
+  const resetBtn = $("#resetBtn");
+  resetBtn.addEventListener("click", () => {
+    if (!armed){
+      resetBtn.textContent = "¿Seguro? Pulsa otra vez";
+      armed = setTimeout(() => { armed = null; resetBtn.textContent = "Reiniciar"; }, 3000);
+      return;
+    }
+    clearTimeout(armed); armed = null; resetBtn.textContent = "Reiniciar";
+    state = fresh(); fails.length = 0;
+    initGame(); fillIntro(); show("intro");
+  });
+
+  // Modo prueba: abre la página con #prueba al final de la dirección.
+  const testBtn = $("#testBtn");
+  const syncTest = () => { testBtn.hidden = location.hash !== "#prueba"; };
+  window.addEventListener("hashchange", syncTest);
+  testBtn.addEventListener("click", () => {
+    state.solved = model.rows.map((_, i) => i < n - 1);
+    state.done = false; state.active = n - 1;
+    initGame(); select(n - 1, true);
+  });
+
+  // ---- Arranque ----
+  function start(){
+    state = valid(load()) || fresh();
+    fillIntro();
+    initGame();
+    syncTest();
+    if (state.screen === "reveal" && state.done){ renderTicket(); show("reveal"); }
+    else if (state.screen === "game") show("game");
+    else show("intro");
+  }
+  start();
+})();
+</script>
+
+</html>
