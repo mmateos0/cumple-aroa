@@ -150,11 +150,14 @@ figure{margin:0}
 @media (min-width:680px){.ticket{grid-template-columns:minmax(0,1fr) 200px}}
 .ticket-main{display:flex;flex-direction:column;gap:28px;padding:clamp(20px,4vw,32px);min-width:0}
 .ticket-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
-.route{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(10px,3vw,20px)}
-.port{display:flex;flex-direction:column;gap:6px}
-.port.to{align-items:flex-end;text-align:right}
-.code{font-family:var(--f-mono);font-weight:500;font-size:clamp(2.25rem,9vw,3.75rem);line-height:.9;letter-spacing:.01em}
-.city{font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.v-head{display:flex;flex-direction:column;gap:20px}
+.v-title{margin:0;font-family:var(--f-display);font-weight:400;font-size:clamp(2rem,6.5vw,3rem);line-height:1.05;letter-spacing:-.01em;text-wrap:balance}
+.couple{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(10px,3vw,20px)}
+.who{font-family:var(--f-mono);font-weight:500;font-size:clamp(1.25rem,5.5vw,1.875rem);line-height:1;letter-spacing:.06em;text-transform:uppercase}
+.steps{display:flex;flex-direction:column;gap:12px}
+.step-list{list-style:none;margin:0;padding:0;counter-reset:paso;border-top:1px solid var(--line)}
+.step-list li{counter-increment:paso;display:grid;grid-template-columns:2.2ch minmax(0,1fr);gap:14px;padding:12px 6px;border-bottom:1px solid var(--line)}
+.step-list li::before{content:counter(paso);font-family:var(--f-mono);font-size:var(--t-sm);line-height:1.55rem;color:var(--muted)}
 .path{position:relative;height:24px;display:grid;place-items:center}
 .path::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--muted)}
 .path svg{position:relative;width:24px;height:24px;padding:0 6px;box-sizing:content-box;background:var(--surface);color:var(--accent)}
@@ -253,15 +256,18 @@ figure{margin:0}
       <p class="lede" id="giftSub"></p>
     </div>
 
-    <article class="ticket" aria-label="Billete regalo">
+    <article class="ticket" aria-label="Vale regalo">
       <div class="ticket-main">
-        <div class="ticket-top"><span class="eyebrow">Billete regalo</span><span class="eyebrow" id="tFlight"></span></div>
-        <div class="route">
-          <div class="port"><span class="code" id="tFromCode"></span><span class="city" id="tFromCity"></span></div>
-          <div class="path" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 12c0 .8-.7 1-1.5 1h-6l-4 7H8.5l2.5-7H6l-1.5 2H3l1-3-1-3h1.5L6 11h5L8.5 4H10l4 7h6c.8 0 1.5.2 1.5 1z"/></svg>
+        <div class="ticket-top"><span class="eyebrow" id="vLabelA"></span><span class="eyebrow" id="vLabelB"></span></div>
+        <div class="v-head">
+          <p class="v-title" id="vTitle"></p>
+          <div class="couple">
+            <span class="who" id="vA"></span>
+            <div class="path" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z"/></svg>
+            </div>
+            <span class="who" id="vB"></span>
           </div>
-          <div class="port to"><span class="code" id="tToCode"></span><span class="city" id="tToCity"></span></div>
         </div>
         <dl class="fields" id="tFields"></dl>
       </div>
@@ -270,6 +276,11 @@ figure{margin:0}
         <div class="barcode" id="barcode" aria-hidden="true"></div>
       </div>
     </article>
+
+    <div class="steps" id="stepsBlock">
+      <p class="eyebrow">Cómo canjearlo</p>
+      <ol class="step-list" id="vSteps"></ol>
+    </div>
 
     <p class="note" id="giftNote"></p>
     <div class="reveal-foot">
@@ -284,8 +295,10 @@ figure{margin:0}
    CONFIGURACIÓN — cambia solo esto para personalizar el juego
    ===================================================================== */
 const CONFIG = {
-  // Nombre de la cumpleañera (portada y billete). Se puede usar {nombre} en los textos del regalo.
+  // Nombre de la cumpleañera (portada y vale). Se puede usar {nombre} en los textos del regalo.
   nombre: "Aroa",
+  // Su pareja. Se puede usar {pareja} en los textos del regalo.
+  pareja: "Sergio",
   // Quién firma el regalo
   firma: "Tus amigas",
 
@@ -293,7 +306,7 @@ const CONFIG = {
   // Debe tener tantas letras como palabras hay en la lista de abajo.
   palabraClave: "ESCAPADA",
   // Frase que sale debajo de la palabra clave al terminar el crucigrama
-  textoFinal: "¿A dónde? Abre tu regalo para saberlo.",
+  textoFinal: "¿Con quién, cuándo y dónde? Abre tu regalo.",
 
   // Una palabra por cada letra de la palabra clave, en orden.
   // Cada respuesta tiene que contener su letra (la 1ª palabra una E, la 2ª una S...).
@@ -310,27 +323,30 @@ const CONFIG = {
     { respuesta: "Agua",         pista: "¿Qué se tiró Urko encima cuando se cayó en el comedor?" }
   ],
 
-  // Lo que aparece al abrir el regalo
+  // Lo que aparece al abrir el regalo. {nombre} y {pareja} se cambian solos.
   regalo: {
-    titulo: "Te vas a",
-    destino: "Irlanda",
-    subtitulo: "A ver a Sergio. Feliz cumpleaños, {nombre}.",
-    vuelo: "Vuelo LU 2310",
-    origen:  { codigo: "MAD", ciudad: "Madrid" },   // cambia por vuestro aeropuerto
-    llegada: { codigo: "DUB", ciudad: "Dublín" },
+    titulo: "Os vais de",
+    destacado: "escapada",
+    subtitulo: "Tú y {pareja}, cuando él vuelva de Irlanda. Feliz cumpleaños, {nombre}.",
+    etiquetas: ["Vale regalo", "Caja de experiencias"],
+    experiencia: "Escapada romántica",
     datos: [
-      ["Pasajera", "{nombre}"],
-      ["Fecha",    "12 dic 2026"],
-      ["Salida",   "07:40"],
-      ["Asiento",  "Ventanilla"],
-      ["Equipaje", "1 maleta, sin pasarse"],
-      ["Motivo",   "Ver a Sergio"]
+      ["Para",        "{nombre} y {pareja}"],
+      ["Experiencia", "Escapada romántica"],
+      ["Destino",     "Donde queráis"],
+      ["Fecha",       "Cuando decidáis"],
+      ["Ocasión",     "La vuelta de {pareja} de Irlanda"],
+      ["Validez",     "1 año"]
     ],
-    talon: [
-      ["Puerta", "Llegadas"],
-      ["Clase",  "Amiga favorita"]
+    // Fecha límite del vale. Si lo dejas vacío ("") se pone sola: un año desde el día
+    // en que Aroa abre el regalo. También puedes poner una fija, por ejemplo "15 nov 2027".
+    caduca: "",
+    pasos: [
+      "Esperad a que {pareja} vuelva de Irlanda.",
+      "Elegid juntos el sitio y el día.",
+      "Canjeadlo antes de la fecha del vale."
     ],
-    mensaje: "Sabemos lo mucho que le echas de menos, así que esta vez el viaje corre de nuestra cuenta. Disfrútalo y vuelve con historias para el próximo crucigrama."
+    mensaje: "Sabemos las ganas que tienes de que {pareja} vuelva. Cuando esté aquí, esta escapada es vuestra. Vosotros elegís el sitio y el día. Disfrutadla mucho."
   }
 };
 /* ===================================================================== */
@@ -340,7 +356,7 @@ const CONFIG = {
   const NUM = {1:"un",2:"dos",3:"tres",4:"cuatro",5:"cinco",6:"seis",7:"siete",8:"ocho",9:"nueve",10:"diez",11:"once",12:"doce"};
   const GOOD = ["¡Eso es!", "Exacto. Qué recuerdo.", "Correcto. Esa no se olvida.", "Bien. Siguiente.", "Eso mismo."];
   const WRONG = ["Esa no es. Haz memoria.", "Casi… o no. Prueba otra.", "Nop. Piensa en aquel día.", "Tampoco. Usa la pista si hace falta."];
-  const fill = s => String(s).replaceAll("{nombre}", CONFIG.nombre);
+  const fill = s => String(s).replaceAll("{nombre}", CONFIG.nombre).replaceAll("{pareja}", CONFIG.pareja || "");
 
   // Letras de una palabra: display conserva la Ñ, key sirve para comparar sin tildes.
   function letters(s){
@@ -556,17 +572,33 @@ const CONFIG = {
   }
 
   // ---- Regalo ----
+  function openedAt(){ return new Date(state.openedAt || Date.now()); }
+  function expiry(){
+    const g = CONFIG.regalo;
+    if (g.caduca) return fill(g.caduca);
+    const d = openedAt();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  }
+  function voucherCode(){
+    return "ESC-" + hash(CONFIG.nombre + CONFIG.pareja).toUpperCase().padStart(4, "0").slice(-4) + "-" + openedAt().getFullYear();
+  }
   function renderTicket(){
     const g = CONFIG.regalo;
     const title = $("#giftTitle");
     title.textContent = fill(g.titulo) + " ";
-    const em = document.createElement("em"); em.textContent = fill(g.destino); title.appendChild(em);
+    const em = document.createElement("em"); em.textContent = fill(g.destacado); title.appendChild(em);
     $("#giftSub").textContent = fill(g.subtitulo);
-    $("#tFlight").textContent = fill(g.vuelo);
-    $("#tFromCode").textContent = g.origen.codigo;
-    $("#tFromCity").textContent = g.origen.ciudad;
-    $("#tToCode").textContent = g.llegada.codigo;
-    $("#tToCity").textContent = g.llegada.ciudad;
+    const tags = g.etiquetas || [];
+    $("#vLabelA").textContent = fill(tags[0] || "");
+    $("#vLabelB").textContent = fill(tags[1] || "");
+    $("#vTitle").textContent = fill(g.experiencia);
+    $("#vA").textContent = CONFIG.nombre;
+    $("#vB").textContent = CONFIG.pareja || "";
+    const steps = $("#vSteps");
+    steps.innerHTML = "";
+    (g.pasos || []).forEach(p => { const li = document.createElement("li"); li.textContent = fill(p); steps.appendChild(li); });
+    $("#stepsBlock").hidden = !(g.pasos || []).length;
     const dl = (el, pairs) => {
       el.innerHTML = "";
       pairs.forEach(([k, v]) => {
@@ -577,10 +609,10 @@ const CONFIG = {
       });
     };
     dl($("#tFields"), g.datos);
-    dl($("#tStub"), g.talon);
+    dl($("#tStub"), [["Válido hasta", expiry()], ["Código", voucherCode()]]);
     const bc = $("#barcode");
     bc.innerHTML = "";
-    let h = parseInt(hash(CONFIG.nombre + g.vuelo), 36) || 7;
+    let h = parseInt(hash(CONFIG.nombre + CONFIG.pareja), 36) || 7;
     for (let i = 0; i < 46; i++){
       h = (Math.imul(h, 1103515245) + 12345) >>> 0;
       const b = document.createElement("i");
@@ -714,7 +746,10 @@ const CONFIG = {
     answer.focus({ preventScroll: true });
   });
 
-  $("#giftBtn").addEventListener("click", () => { renderTicket(); show("reveal"); confetti(); });
+  $("#giftBtn").addEventListener("click", () => {
+    if (!state.openedAt) state.openedAt = Date.now();
+    renderTicket(); show("reveal"); confetti();
+  });
   $("#backBtn").addEventListener("click", () => show("game"));
 
   let armed = null;
