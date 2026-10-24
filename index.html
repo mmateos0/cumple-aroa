@@ -336,11 +336,12 @@ const CONFIG = {
       ["Destino",     "Donde queráis"],
       ["Fecha",       "Cuando decidáis"],
       ["Ocasión",     "La vuelta de {pareja} de Irlanda"],
-      ["Validez",     "3 años"]
+      ["Validez",     "Más de 3 años"]
     ],
-    // Fecha límite del vale. Si lo dejas vacío ("") se pone sola: un año desde el día
-    // en que Aroa abre el regalo. También puedes poner una fija, por ejemplo "15 nov 2027".
-    caduca: "",
+    // Fecha límite del vale, tal como se verá en él.
+    caduca: "31 ene 2030",
+    // Código que se ve en el vale. El repositorio es público: no pongas aquí el código real de la caja.
+    codigo: "--------",
     pasos: [
       "Esperad a que {pareja} vuelva de Irlanda.",
       "Elegid juntos el sitio y el día.",
@@ -580,9 +581,7 @@ const CONFIG = {
     d.setFullYear(d.getFullYear() + 1);
     return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
   }
-  function voucherCode(){
-    return "ESC-" + hash(CONFIG.nombre + CONFIG.pareja).toUpperCase().padStart(4, "0").slice(-4) + "-" + openedAt().getFullYear();
-  }
+  function voucherCode(){ return fill(CONFIG.regalo.codigo || "--------"); }
   function renderTicket(){
     const g = CONFIG.regalo;
     const title = $("#giftTitle");
